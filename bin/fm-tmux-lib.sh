@@ -128,6 +128,13 @@ fm_tmux_composer_state() {  # <target> -> empty|pending|unknown
   stripped=${line//│/}      # U+2502 light vertical (claude)
   stripped=${stripped//┃/}  # U+2503 heavy vertical
   stripped=${stripped//|/}  # ASCII pipe
+  # Normalize the non-breaking space (U+00A0) the claude composer pads its prompt
+  # with into an ASCII space. The trim below uses POSIX [:space:], which does NOT
+  # match U+00A0, so without this an idle "❯<NBSP>" prompt survives the trim, never
+  # matches the bare-prompt "empty" case, and reads as pending input — wedging the
+  # away-mode daemon (it deferred 100% of escalations) and tripping fm-send's
+  # swallowed-Enter check on every idle pane.
+  stripped=${stripped//$'\xc2\xa0'/ }  # U+00A0 NBSP -> ASCII space
   # Trim surrounding whitespace.
   stripped="${stripped#"${stripped%%[![:space:]]*}"}"
   stripped="${stripped%"${stripped##*[![:space:]]}"}"
