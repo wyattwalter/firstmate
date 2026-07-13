@@ -210,6 +210,12 @@ fm_composer_classify_content() {  # <bordered> <content> [idle_re] [idle_case] [
     '❯ '*|'› '*|'> '*|'$ '*|'% '*|'# '*) content=${content#??} ;;
     '❯'*|'›'*|'>'*|'$'*|'%'*|'#'*) content=${content#?} ;;
   esac
+  # Normalize the non-breaking space (U+00A0) the claude composer pads its idle
+  # prompt with into an ASCII space, so the [:space:] trim below strips it. POSIX
+  # [:space:] does NOT match U+00A0, so without this an idle "❯<NBSP>" row survives
+  # the trim as pending input - wedging the away-mode daemon (it deferred 100% of
+  # escalations) and tripping fm-send's swallowed-Enter check on every idle pane.
+  content=${content//$'\xc2\xa0'/ }  # U+00A0 NBSP -> ASCII space
   content="${content#"${content%%[![:space:]]*}"}"
   content="${content%"${content##*[![:space:]]}"}"
   [ -n "$content" ] || { printf 'empty'; return 0; }

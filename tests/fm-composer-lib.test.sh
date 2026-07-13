@@ -114,6 +114,27 @@ test_idle_placeholder_case_mode_is_explicit() {
   pass "fm_composer_classify_content: idle matching preserves the caller's case mode"
 }
 
+# --- NBSP-padded idle prompt is empty (task sync-upstream-k4) ----------------
+
+test_nbsp_padded_prompt_is_empty() {
+  local nbsp out
+  nbsp=$'\xc2\xa0'  # U+00A0 non-breaking space, the byte pattern claude pads with
+  # An idle claude prompt padded with a non-breaking space must read empty, not
+  # pending: POSIX [:space:] does not match U+00A0, so without normalization the
+  # NBSP survives the trim and wedges away-mode supervision.
+  out=$(classify 0 "❯$nbsp")
+  [ "$out" = empty ] || fail "a bare NBSP-padded claude prompt must read empty, got '$out'"
+  out=$(classify 1 "❯$nbsp")
+  [ "$out" = empty ] || fail "a bordered NBSP-padded claude prompt must read empty, got '$out'"
+  # A composer padded with only a bare NBSP (no glyph) is also empty.
+  out=$(classify 1 "$nbsp")
+  [ "$out" = empty ] || fail "a bare NBSP-only composer must read empty, got '$out'"
+  # NBSP must not swallow genuine input: real text after the glyph stays pending.
+  out=$(classify 0 "❯${nbsp}fix findings 1 and 3")
+  [ "$out" = pending ] || fail "real text after an NBSP-padded glyph must read pending, got '$out'"
+  pass "fm_composer_classify_content: an NBSP-padded idle prompt reads empty, without swallowing real input"
+}
+
 # --- Real text is pending ---------------------------------------------------
 
 test_real_text_is_pending() {
@@ -133,4 +154,5 @@ test_agent_glyphs_are_empty_bordered_and_bare
 test_empty_content_is_empty
 test_idle_placeholder_is_empty
 test_idle_placeholder_case_mode_is_explicit
+test_nbsp_padded_prompt_is_empty
 test_real_text_is_pending
