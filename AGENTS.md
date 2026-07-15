@@ -495,7 +495,10 @@ During the `ci` monitor phase, `bin/fm-crew-state.sh` also reads the ci step log
 ### PR ready
 
 For PR-based ship tasks, the ready signal depends on mode: `no-mistakes` reports `done: PR <url> checks green` after CI is green, while `direct-PR` reports `done: PR <url>` after opening the PR.
-Run `bin/fm-pr-check.sh <id> <PR url>` - it records `pr=` and GitHub's `pr_head=` when available in the task's meta and arms the watcher's merge poll.
+Run `bin/fm-pr-check.sh <id> <PR url>` - it records `pr=` and GitHub's `pr_head=` when available in the task's meta and arms the watcher's poll for both the merge and unresolved review-bot findings.
+Green checks are not the same as no findings: a code-review bot can post a substantive finding as a PR review comment while its own status check stays green, so the check rollup alone reads that PR as clean.
+Never call a PR clean on the check rollup alone - before relaying one to the captain as ready, read its review-bot comments and threads too, for which `bin/fm-pr-bot-findings.sh <PR url>` prints any unresolved automated-reviewer finding and prints nothing when there are none.
+Relay a finding to the captain as a decision rather than reporting the PR ready.
 Tell the captain: the PR's full URL (always the complete `https://...` link, never a bare `#number` - the captain's terminal makes a full URL clickable), a one-paragraph summary, and, for `no-mistakes`, the risk level it emitted.
 (The check contract, for any custom `state/<id>.check.sh` you write yourself: print one line only when firstmate should wake, print nothing otherwise, and finish before `FM_CHECK_TIMEOUT`.)
 
@@ -588,7 +591,7 @@ On wake, in order of cheapness:
 3. `stale:` the crewmate stopped without reporting; peek the pane (`bin/fm-peek.sh <window>`) to diagnose.
    If the stale reason includes `demand-deep-inspection`, inspect the pane, `bin/fm-crew-state.sh <id>`, and the validation logs before resuming supervision.
    If the pane is waiting, looping, confused, or unresponsive, load `stuck-crewmate-recovery`.
-4. `check:` a per-task poll fired (usually a merge, or X mode when enabled); act on it.
+4. `check:` a per-task poll fired (usually a merge, an unresolved review-bot finding on an open PR per section 7's "PR ready" rule, or X mode when enabled); act on it.
 5. `heartbeat:` a heartbeat wake now reaches you only when the watcher's bash fleet-scan caught a captain-relevant status the per-wake path missed (no-change heartbeats are absorbed in bash, never surfaced), so treat it as "something turned up" and review the whole fleet: start with `bin/fm-fleet-view.sh` for the structured overview, use `bin/fm-crew-state.sh <id>` only for targeted follow-up, peek panes that look off, check PR-ready tasks for merge, reconcile data/backlog.md, then resume the emitted supervision protocol.
    Do not report that the fleet is unchanged.
 
