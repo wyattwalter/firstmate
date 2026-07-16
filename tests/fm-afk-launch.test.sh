@@ -238,18 +238,23 @@ unit_lock_initialization_grace() {
 }
 
 unit_signal_exits_with_lock_cleanup() {
-  local st marker child
+  local st marker started child
   st=$(mktemp -d "${TMPDIR:-/tmp}/fm-afk-signal.XXXXXX")
   marker="$st/resumed"
+  # Signal only once the guarded lifecycle is genuinely running: the overridden
+  # start touches "started" AFTER fm_afk_launch_main installs its EXIT/TERM
+  # traps. Racing on the lock dir alone can deliver TERM mid-acquire, before the
+  # traps exist, so default TERM would kill the shell and leak the lock.
+  started="$st/started"
   FM_HOME="$st" FM_STATE_OVERRIDE="$st/state" bash -c '
     . "$1"
-    fm_afk_launch_start() { sleep 30; }
+    fm_afk_launch_start() { : > "$3"; sleep 30; }
     fm_afk_launch_main start
     : > "$2"
-  ' _ "$LAUNCH" "$marker" &
+  ' _ "$LAUNCH" "$marker" "$started" &
   child=$!
   for _ in $(seq 1 40); do
-    [ -d "$st/state/.afk-launch.lock" ] && break
+    [ -e "$started" ] && break
     sleep 0.05
   done
   kill -TERM "$child" 2>/dev/null || true
