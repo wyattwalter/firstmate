@@ -195,7 +195,29 @@ run_session_start() {
   local home=$1 root=$2 path=$3
   env -u CLAUDECODE -u PI_CODING_AGENT -u GROK_AGENT \
     FM_HOME="$home" FM_ROOT_OVERRIDE="$root" PATH="$path" \
+    ${BASH_ENV:+BASH_ENV="$BASH_ENV"} \
     "$SESSION_START"
+}
+
+# make_node_hidden <dir>: write a BASH_ENV file that hides `node` from tool
+# detection even when the host provides /usr/bin/node, so a test can force a
+# genuine "MISSING: node" diagnostic. Mirrors fm-bootstrap.test.sh's git-missing
+# override; removing the fake node alone is not enough on hosts with a system
+# node. Echoes the file path.
+make_node_hidden() {
+  local dir=$1 f="$1/hide-node.bash"
+  cat > "$f" <<'SH'
+command() {
+  if [ "${1:-}" = -v ] && [ "${2:-}" = node ]; then
+    return 1
+  fi
+  builtin command "$@"
+}
+node() {
+  return 127
+}
+SH
+  printf '%s\n' "$f"
 }
 
 hash_file_for_test() {
@@ -354,7 +376,7 @@ EOF
 
   printf 'window=fm-sess:w1\nkind=ship\n' > "$home/state/task-a.meta"
 
-  out=$(run_session_start "$home" "$root" "$fakebin:$BASE_PATH")
+  out=$(BASH_ENV=$(make_node_hidden "$home") run_session_start "$home" "$root" "$fakebin:$BASE_PATH")
 
   lock_line=$(printf '%s\n' "$out" | grep -n '^LOCK$' | head -1 | cut -d: -f1)
   boot_line=$(printf '%s\n' "$out" | grep -n '^BOOTSTRAP$' | head -1 | cut -d: -f1)
@@ -537,7 +559,7 @@ EOF
 
   append_wake "$home/state" signal task-z "needs-decision: pick a library"
 
-  out=$(run_session_start "$home" "$root" "$fakebin:$BASE_PATH")
+  out=$(BASH_ENV=$(make_node_hidden "$home") run_session_start "$home" "$root" "$fakebin:$BASE_PATH")
 
   # fm-lock.sh's own exact success text.
   assert_contains "$out" "lock acquired: harness pid" "fm-lock.sh's real output did not appear (composition, not reimplementation)"
