@@ -126,7 +126,7 @@ query($owner:String!,$repo:String!,$number:Int!){
 }'
 
 raw=$(gh api graphql -f query="$QUERY" \
-  -F owner="$PR_OWNER" -F repo="$PR_REPO" -F number="$PR_NUMBER" 2>/dev/null) || {
+  -f owner="$PR_OWNER" -f repo="$PR_REPO" -F number="$PR_NUMBER" 2>/dev/null) || {
   echo "error: could not read review threads for $URL" >&2
   exit 1
 }
