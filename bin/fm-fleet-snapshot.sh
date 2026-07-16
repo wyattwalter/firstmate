@@ -271,7 +271,7 @@ backlog_json() {  # [<backlog-path>] - defaults to this home's $BACKLOG
 }
 
 task_json_lines() {
-  local meta id kind harness mode yolo project worktree home projects backend target status_log report_path
+  local meta id kind harness mode yolo project board worktree home projects backend target status_log report_path
   local pr pr_source event_json current_json endpoint_exists agent_alive meta_json status_json report_json worktree_json home_json
   local last_event_raw current_state current_source pending_decision blocked_event report_present=0 pr_from_status
   local open_decisions_tsv open_decisions_json
@@ -285,6 +285,15 @@ task_json_lines() {
     mode=$(meta_value "$meta" mode)
     yolo=$(meta_value "$meta" yolo)
     project=$(meta_value "$meta" project)
+    # Optional firstmate-set board-column override; the dashboard reads it as a
+    # top-level `board` field and lets a valid value win over its own inference.
+    # Only the dashboard's five column keys are emitted; anything else is dropped
+    # so the dashboard falls back to inference. bin/fm-board.sh sets/clears it.
+    board=$(meta_value "$meta" board)
+    case "$board" in
+      decision|progress|push|review|hold) ;;
+      *) board= ;;
+    esac
     worktree=$(meta_value "$meta" worktree)
     home=$(meta_value "$meta" home)
     projects=$(meta_value "$meta" projects)
@@ -367,6 +376,7 @@ task_json_lines() {
       --arg mode "$mode" \
       --arg yolo "$yolo" \
       --arg project "$project" \
+      --arg board "$board" \
       --arg worktree "$worktree" \
       --arg home "$home" \
       --arg projects "$projects" \
@@ -394,6 +404,7 @@ task_json_lines() {
         mode:($mode // ""),
         yolo:($yolo // ""),
         project:($project // ""),
+        board:($board | if . == "" then null else . end),
         backend:$backend,
         paths:{
           meta:$meta_path,

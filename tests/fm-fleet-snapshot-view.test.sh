@@ -526,6 +526,50 @@ test_completed_scout_report_is_pointer_not_pending() {
   pass "a completed scout's stale decision surfaces as a report pointer, not pending"
 }
 
+# The board-column override: a valid board= line in meta surfaces as a top-level
+# `board` field the dashboard honors over its own inference; an absent or invalid
+# value emits null so the dashboard falls back to inference.
+test_board_override_emitted_only_when_valid() {
+  local home fakebin out
+  home=$(make_home board-override)
+  mkdir -p "$home/projects/held" "$home/projects/bad-board" "$home/projects/no-board"
+  fm_write_meta "$home/state/held-task.meta" \
+    "window=firstmate:fm-held-task" \
+    "worktree=$home/projects/held" \
+    "project=alpha" \
+    "harness=codex" \
+    "kind=ship" \
+    "mode=ship" \
+    "board=hold"
+  printf 'working: implementing\n' > "$home/state/held-task.status"
+  fm_write_meta "$home/state/bad-board-task.meta" \
+    "window=firstmate:fm-bad-board-task" \
+    "worktree=$home/projects/bad-board" \
+    "project=alpha" \
+    "harness=codex" \
+    "kind=ship" \
+    "mode=ship" \
+    "board=nonsense"
+  printf 'working: implementing\n' > "$home/state/bad-board-task.status"
+  fm_write_meta "$home/state/no-board-task.meta" \
+    "window=firstmate:fm-no-board-task" \
+    "worktree=$home/projects/no-board" \
+    "project=alpha" \
+    "harness=codex" \
+    "kind=ship" \
+    "mode=ship"
+  printf 'working: implementing\n' > "$home/state/no-board-task.status"
+  fakebin=$(make_fakebin "$home")
+  out=$(PATH="$fakebin:$PATH" FM_HOME="$home" "$SNAPSHOT" --json)
+  printf '%s' "$out" | jq -e '
+    def task($id): (.tasks[] | select(.id == $id));
+    task("held-task").board == "hold"
+      and task("bad-board-task").board == null
+      and task("no-board-task").board == null
+  ' >/dev/null || fail "board override must emit valid keys and null otherwise: $out"
+  pass "snapshot emits board override only for valid column keys"
+}
+
 # The complementary safety property: a scout still PARKED at a decision (its last
 # event is the needs-decision, it has not finished) DOES stay pending. The terminal
 # clear must not over-fire on a live, undecided scout.
@@ -560,6 +604,7 @@ test_secondmate_open_decision_survives_live_endpoint
 test_open_decision_clears_on_keyed_resolution
 test_completed_scout_report_is_pointer_not_pending
 test_parked_scout_decision_stays_pending
+test_board_override_emitted_only_when_valid
 test_scout_reports_include_teardown_reports
 test_backlog_tasks_axi_forms_and_overrides
 test_view_renders_snapshot
