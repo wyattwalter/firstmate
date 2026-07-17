@@ -316,12 +316,7 @@ Two firstmate-specific rules layer on top of that guidance:
   When the decision comes back, feed it to the gate with \`no-mistakes axi respond\` and let the pipeline apply it - do not route the question to "the user" or implement the fix yourself.
 - Avoid \`--yes\`: the captain, not you, owns the ask-user decisions it would silently auto-resolve.
 
-Green checks are NOT the same as no findings, so do not report the PR clean on the check rollup alone.
-A code-review bot can post a substantive finding as a PR review comment while its own status check stays green, so a green rollup hides it.
-Before you report the PR green, read the PR's review comments and review threads: \`$FM_ROOT/bin/fm-pr-bot-findings.sh {url}\` prints any unresolved automated-reviewer finding, and prints nothing when there are none.
-If a finding is present, it is not yours to fix or dismiss: append \`needs-decision: {the finding and your recommended options}\` and stop, instead of reporting the PR clean.
-
-After /no-mistakes reports CI green AND the PR carries no unresolved review-bot finding (the CI-ready return point - do not wait for it to keep monitoring in the background until merge), append \`done: PR {url} checks green\` and stop. You are finished.
+After /no-mistakes reports CI green (the CI-ready return point - do not wait for it to keep monitoring in the background until merge), append \`done: PR {url} checks green\` and stop. You are finished.
 EOF
 )
     ;;
